@@ -5,23 +5,23 @@ import machine
 from umqtt.simple import MQTTClient
 
 # Konfigurasi WiFi
-WIFI_SSID = "POCO"       # Ganti dengan SSID WiFi Anda
-WIFI_PASSWORD = "ramodal123"   # Ganti dengan password WiFi Anda
+WIFI_SSID = "POCO"     
+WIFI_PASSWORD = "ramodal123"  
 
 # Konfigurasi Ubidots MQTT
 UBIDOTS_BROKER = "industrial.api.ubidots.com"
-UBIDOTS_TOKEN = "BBUS-Fejwy49kzbSPIwH0vTcu4ec60Q55sF"  # Ganti dengan TOKEN Anda
-UBIDOTS_DEVICE = "seven-lines"  # Nama device di Ubidots
-UBIDOTS_VARIABLE_TEMP = "temperature"  # Variabel suhu di Ubidots
-UBIDOTS_VARIABLE_HUM = "humidity"  # Variabel kelembaban di Ubidots
-UBIDOTS_VARIABLE_PIR = "motion"  # Variabel untuk PIR (gerakan)
+UBIDOTS_TOKEN = "BBUS-Fejwy49kzbSPIwH0vTcu4ec60Q55sF"  
+UBIDOTS_DEVICE = "seven-lines" 
+UBIDOTS_VARIABLE_TEMP = "temperature"  
+UBIDOTS_VARIABLE_HUM = "humidity" 
+UBIDOTS_VARIABLE_PIR = "motion" 
 
 # Inisialisasi Sensor DHT22
-DHT_PIN = 4  # Ganti dengan pin yang digunakan untuk DHT22
+DHT_PIN = 4  
 sensor_dht = dht.DHT22(machine.Pin(DHT_PIN))
 
 # Inisialisasi Sensor PIR
-PIR_PIN = 14  # Ganti dengan pin yang digunakan untuk PIR
+PIR_PIN = 14 
 sensor_pir = machine.Pin(PIR_PIN, machine.Pin.IN)
 
 # Fungsi untuk koneksi WiFi
@@ -41,7 +41,7 @@ def connect_wifi():
     print("\nGagal terhubung ke WiFi!")
     return False
 
-# Fungsi untuk mengirim data ke Ubidots
+
 def send_to_ubidots(temperature, humidity, motion_detected):
     client = MQTTClient("esp32", UBIDOTS_BROKER, user=UBIDOTS_TOKEN, password="", port=1883)
     client.connect()
@@ -56,16 +56,16 @@ def send_to_ubidots(temperature, humidity, motion_detected):
     client.publish(topic, payload)
     client.disconnect()
 
-# Program utama
+
 if connect_wifi():
     while True:
         try:
-            # Membaca data sensor DHT22
+           
             sensor_dht.measure()  # Baca sensor
             temp = sensor_dht.temperature()  # Suhu dalam Celcius
             hum = sensor_dht.humidity()  # Kelembaban
             
-            # Membaca status sensor PIR
+            
             motion = sensor_pir.value()  # 1 jika ada gerakan, 0 jika tidak
             
             print("Suhu:", temp, "°C | Kelembaban:", hum, "% | Gerakan:", motion)
