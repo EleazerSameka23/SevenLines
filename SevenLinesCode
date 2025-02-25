@@ -99,5 +99,5 @@ if connect_wifi():
         except OSError as e:
             print("Gagal membaca sensor:", e)
         
-        time.sleep(10)  # Kirim data setiap 10 detik
+        time.sleep(10) 
 
