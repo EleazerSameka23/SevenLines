@@ -1,34 +1,36 @@
 import network
+import urequests
 import time
 import dht
 import machine
 from umqtt.simple import MQTTClient
 
-# Konfigurasi WiFi
-WIFI_SSID = "POCO"     
-WIFI_PASSWORD = "ramodal123"  
+# **🔧 Konfigurasi WiFi**
+WIFI_SSID = "Elizabeth" #Wifi saya
+WIFI_PASSWORD = "1Sampai9" #Passwordnya
 
-# Konfigurasi Ubidots MQTT
-UBIDOTS_BROKER = "industrial.api.ubidots.com"
-UBIDOTS_TOKEN = "BBUS-Fejwy49kzbSPIwH0vTcu4ec60Q55sF"  
-UBIDOTS_DEVICE = "seven-lines" 
-UBIDOTS_VARIABLE_TEMP = "temperature"  
-UBIDOTS_VARIABLE_HUM = "humidity" 
-UBIDOTS_VARIABLE_PIR = "motion" 
+# **🔧 Konfigurasi Ubidots**
+UBIDOTS_TOKEN = "BBUS-Fejwy49kzbSPIwH0vTcu4ec60Q55sF"  # Ganti dengan token Ubidots
+UBIDOTS_DEVICE_LABEL = "seven-lines"
+UBIDOTS_MQTT_BROKER = "industrial.api.ubidots.com"
+UBIDOTS_MQTT_TOPIC = f"/v1.6/devices/{UBIDOTS_DEVICE_LABEL}"
 
-# Inisialisasi Sensor DHT22
-DHT_PIN = 4  
+# **🔧 Konfigurasi Flask API**
+FLASK_API_URL = "http://192.168.1.100:5000/"  # Ganti dengan IP Server Flask
+
+# **🛠️ Inisialisasi Sensor DHT22 & PIR**
+DHT_PIN = 4
 sensor_dht = dht.DHT22(machine.Pin(DHT_PIN))
 
-# Inisialisasi Sensor PIR
-PIR_PIN = 14 
+PIR_PIN = 14
 sensor_pir = machine.Pin(PIR_PIN, machine.Pin.IN)
 
-# Fungsi untuk koneksi WiFi
+# **🌐 Fungsi untuk koneksi WiFi**
 def connect_wifi():
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
-    wlan.connect(WIFI_SSID, WIFI_PASSWORD)
+    wlan.connect(WIFI_SSID, WIFI_PASSWORD) 
+
 
     print("Menghubungkan ke WiFi...", end="")
     for _ in range(10):
@@ -41,38 +43,61 @@ def connect_wifi():
     print("\nGagal terhubung ke WiFi!")
     return False
 
+# **📡 Kirim data ke Ubidots (MQTT)**
+def send_to_ubidots(temp, hum, motion_text):
+    try:
+        client = MQTTClient("esp32", UBIDOTS_MQTT_BROKER, user=UBIDOTS_TOKEN, password="")
+        client.connect()
+        
+        data = {
+            "temperature": temp,
+            "humidity": hum,
+            "motion": motion_text
+        }
+        
+        print("Mengirim data ke Ubidots...")
+        client.publish(UBIDOTS_MQTT_TOPIC, str(data).replace("'", '"'))
+        client.disconnect()
+        
+    except Exception as e:
+        print("Gagal mengirim ke Ubidots:", e)
 
-def send_to_ubidots(temperature, humidity, motion_detected):
-    client = MQTTClient("esp32", UBIDOTS_BROKER, user=UBIDOTS_TOKEN, password="", port=1883)
-    client.connect()
-    
-    payload = (
-        '{"%s": {"value": %.2f}, "%s": {"value": %.2f}, "%s": {"value": %d}}' 
-        % (UBIDOTS_VARIABLE_TEMP, temperature, UBIDOTS_VARIABLE_HUM, humidity, UBIDOTS_VARIABLE_PIR, motion_detected)
-    )
-    topic = "/v1.6/devices/%s" % UBIDOTS_DEVICE
-    
-    print("Mengirim data ke Ubidots:", payload)
-    client.publish(topic, payload)
-    client.disconnect()
+# **📡 Kirim data ke Flask API**
+def send_to_flask(temp, hum, motion_text):
+    try:
+        data = {
+            "temperature": temp,
+            "humidity": hum,
+            "motion": motion_text
+        }
+        
+        print("Mengirim data ke Flask API...")
+        response = urequests.post(FLASK_API_URL, json=data)
+        print("Response:", response.text)
+        response.close()
+        
+    except Exception as e:
+        print("Gagal mengirim ke Flask API:", e)
 
-
+# **🔄 Program utama**
 if connect_wifi():
     while True:
         try:
-           
-            sensor_dht.measure()  # Baca sensor
-            temp = sensor_dht.temperature()  # Suhu dalam Celcius
-            hum = sensor_dht.humidity()  # Kelembaban
-            
-            
-            motion = sensor_pir.value()  # 1 jika ada gerakan, 0 jika tidak
-            
-            print("Suhu:", temp, "°C | Kelembaban:", hum, "% | Gerakan:", motion)
-            send_to_ubidots(temp, hum, motion)  # Kirim data ke Ubidots
+            sensor_dht.measure()
+            temp = sensor_dht.temperature()
+            hum = sensor_dht.humidity()
+            motion_text = "Ada Gerakan" if sensor_pir.value() == 1 else "Tidak Ada Gerakan"
+
+            print(f"Temp: {temp}°C, Humidity: {hum}%, Motion: {motion_text}")
+
+            # **Kirim data ke Ubidots**
+            send_to_ubidots(temp, hum, motion_text)
+
+            # **Kirim data ke Flask API**
+            send_to_flask(temp, hum, motion_text)
             
         except OSError as e:
             print("Gagal membaca sensor:", e)
         
-        time.sleep(1)  # Kirim data setiap 10 detik
+        time.sleep(10)  # Kirim data setiap 10 detik
 
